@@ -1,0 +1,231 @@
+From 4d8096669e2bd5ed67bdc0b69a47f3e1b91eb9f0 Mon Sep 17 00:00:00 2001
+From: Andrei Tatar <andrei@unikraft.io>
+Date: Wed, 12 Jul 2023 12:37:44 +0200
+Subject: [PATCH] Fix incorrect handling of malloc(0)
+
+Shapely wrongly expects malloc(0) != NULL, which is explicitly permitted
+by the standard, causing spurious out of memory errors.
+This change fixes these checks for use with unikraft.
+
+Signed-off-by: Andrei Tatar <andrei@unikraft.io>
+---
+ src/ufuncs.c | 50 +++++++++++++++++++++++++-------------------------
+ 1 file changed, 25 insertions(+), 25 deletions(-)
+
+diff --git a/src/ufuncs.c b/src/ufuncs.c
+index 90a2e0e..c86821e 100644
+--- a/src/ufuncs.c
++++ b/src/ufuncs.c
+@@ -53,8 +53,8 @@ PyObject* PySetupSignalChecks(PyObject* self, PyObject* args) {
+     return;                                                                    \
+   }
+ 
+-#define CHECK_ALLOC(ARR)                                             \
+-  if (ARR == NULL) {                                                 \
++#define CHECK_ALLOC(ARR, SZ)                                         \
++  if (SZ && ARR == NULL) {                                                 \
+     PyErr_SetString(PyExc_MemoryError, "Could not allocate memory"); \
+     return;                                                          \
+   }
+@@ -574,7 +574,7 @@ static void Y_Y_func(char** args, const npy_intp* dimensions, const npy_intp* st
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -722,7 +722,7 @@ static void Yd_Y_func(char** args, const npy_intp* dimensions, const npy_intp* s
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -862,7 +862,7 @@ static void Yi_Y_func(char** args, const npy_intp* dimensions, const npy_intp* s
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -922,7 +922,7 @@ static void YY_Y_func(char** args, const npy_intp* dimensions, const npy_intp* s
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -977,7 +977,7 @@ static void Y_Y_reduce_func(char** args, const npy_intp* dimensions, const npy_i
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1386,7 +1386,7 @@ static void YYd_Y_func(char** args, const npy_intp* dimensions, const npy_intp*
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1442,7 +1442,7 @@ static void box_func(char** args, const npy_intp* dimensions, const npy_intp* st
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * n);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, n);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1519,7 +1519,7 @@ static void buffer_func(char** args, const npy_intp* dimensions, const npy_intp*
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * n);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, n);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1599,7 +1599,7 @@ static void offset_curve_func(char** args, const npy_intp* dimensions, const npy
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * n);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, n);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1649,7 +1649,7 @@ static void snap_func(char** args, const npy_intp* dimensions, const npy_intp* s
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1716,7 +1716,7 @@ static void concave_hull_func(char** args, const npy_intp* dimensions, const npy
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * n);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, n);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1779,7 +1779,7 @@ static void clip_by_rect_func(char** args, const npy_intp* dimensions, const npy
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * n);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, n);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1925,7 +1925,7 @@ static void delaunay_triangles_func(char** args, const npy_intp* dimensions, con
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -1977,7 +1977,7 @@ static void voronoi_polygons_func(char** args, const npy_intp* dimensions, const
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -2312,7 +2312,7 @@ static void shortest_line_func(char** args, const npy_intp* dimensions, const np
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -2405,7 +2405,7 @@ static void set_precision_func(char** args, const npy_intp* dimensions, const np
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -2465,7 +2465,7 @@ static void points_func(char** args, const npy_intp* dimensions, const npy_intp*
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -2526,7 +2526,7 @@ static void linestrings_func(char** args, const npy_intp* dimensions, const npy_
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -2581,7 +2581,7 @@ static void linearrings_func(char** args, const npy_intp* dimensions, const npy_
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr);
++  CHECK_ALLOC(geom_arr, dimensions[0]);
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -2650,11 +2650,11 @@ static void polygons_func(char** args, const npy_intp* dimensions, const npy_int
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr)
++  CHECK_ALLOC(geom_arr, dimensions[0])
+ 
+   // allocate a temporary array to store holes
+   holes = malloc(sizeof(void*) * dimensions[1]);
+-  CHECK_ALLOC(holes)
++  CHECK_ALLOC(holes, dimensions[1])
+ 
+   GEOS_INIT_THREADS;
+ 
+@@ -2766,11 +2766,11 @@ static void create_collection_func(char** args, const npy_intp* dimensions, cons
+ 
+   // allocate a temporary array to store output GEOSGeometry objects
+   geom_arr = malloc(sizeof(void*) * dimensions[0]);
+-  CHECK_ALLOC(geom_arr)
++  CHECK_ALLOC(geom_arr, dimensions[0])
+ 
+   // allocate a temporary array to store geometries to put in a collection
+   temp_geoms = malloc(sizeof(void*) * dimensions[1]);
+-  CHECK_ALLOC(temp_geoms)
++  CHECK_ALLOC(temp_geoms, dimensions[1])
+ 
+   GEOS_INIT_THREADS;
+ 
+-- 
+2.41.0
+

@@ -1,0 +1,6 @@
+config LIBPYTHON_SHAPELY
+    bool "Shapely - Python package for planar geometric objects"
+    default n
+    select LIBPYTHON3
+    select LIBPYTHON_NUMPY
+    select LIBGEOS

@@ -1,0 +1,105 @@
+#  Shapely Makefile.uk
+#
+#  Authors: Andrei Tatar <andrei@unikraft.io>
+#
+#  Copyright (c) 2023, Unikraft GmbH and The Unikraft Authors.
+#
+#  Redistribution and use in source and binary forms, with or without
+#  modification, are permitted provided that the following conditions
+#  are met:
+#
+#  1. Redistributions of source code must retain the above copyright
+#     notice, this list of conditions and the following disclaimer.
+#  2. Redistributions in binary form must reproduce the above copyright
+#     notice, this list of conditions and the following disclaimer in the
+#     documentation and/or other materials provided with the distribution.
+#  3. Neither the name of the copyright holder nor the names of its
+#     contributors may be used to endorse or promote products derived from
+#     this software without specific prior written permission.
+#
+#  THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS"
+#  AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+#  IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+#  ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT HOLDER OR CONTRIBUTORS BE
+#  LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+#  CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+#  SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+#  INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+#  CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+#  ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
+#  POSSIBILITY OF SUCH DAMAGE.
+#
+
+################################################################################
+# Library registration
+##############################################################################
+$(eval $(call addlib_s,libpython_shapely,$(CONFIG_LIBPYTHON_SHAPELY)))
+
+################################################################################
+# Sources
+##############################################################################
+LIBPYTHON_SHAPELY_VERSION=2.0.1
+LIBPYTHON_SHAPELY_URL=https://github.com/shapely/shapely/releases/download/$(LIBPYTHON_SHAPELY_VERSION)/shapely-$(LIBPYTHON_SHAPELY_VERSION).tar.gz
+LIBPYTHON_SHAPELY_DIRNAME=shapely-$(LIBPYTHON_SHAPELY_VERSION)
+LIBPYTHON_SHAPELY_PATCHDIR=$(LIBPYTHON_SHAPELY_BASE)/patches
+$(eval $(call fetch,libpython_shapely,$(LIBPYTHON_SHAPELY_URL)))
+$(eval $(call patch,libpython_shapely,$(LIBPYTHON_SHAPELY_PATCHDIR),$(LIBPYTHON_SHAPELY_DIRNAME)))
+
+################################################################################
+# Helpers
+##############################################################################
+LIBPYTHON_SHAPELY_SRC = $(LIBPYTHON_SHAPELY_ORIGIN)/$(LIBPYTHON_SHAPELY_DIRNAME)
+
+################################################################################
+# Library includes
+##############################################################################
+LIBPYTHON_SHAPELY_CINCLUDES += -I$(LIBPYTHON_SHAPELY_SRC)/src
+
+################################################################################
+# Global flags
+##############################################################################
+LIBPYTHON_SHAPELY_FLAGS-y += -fwrapv
+LIBPYTHON_SHAPELY_FLAGS-y += -Wno-unused-result
+LIBPYTHON_SHAPELY_FLAGS-y += -Wsign-compare
+LIBPYTHON_SHAPELY_FLAGS-$(call have_clang) += -Wno-documentation
+
+LIBPYTHON_SHAPELY_CFLAGS += $(LIBPYTHON_SHAPELY_FLAGS-y)
+
+################################################################################
+# Library sources
+##############################################################################
+# Upstream C sources
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_SRC)/src/c_api.c
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_SRC)/src/coords.c
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_SRC)/src/geos.c
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_SRC)/src/lib.c
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_SRC)/src/pygeom.c
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_SRC)/src/strtree.c
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_SRC)/src/ufuncs.c
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_SRC)/src/vector.c
+
+# Cythonized sources
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_BASE)/generated/shapely/_geometry_helpers.c
+LIBPYTHON_SHAPELY_SRCS-y += $(LIBPYTHON_SHAPELY_BASE)/generated/shapely/_geos.c
+
+################################################################################
+# Root filesystem
+##############################################################################
+
+ifeq ($(CONFIG_LIBPYTHON_SHAPELY),y)
+# Install into main python rootfs & cleanup non-python files
+$(PYTHON_ROOTFS)/.shapely_done: $(PYTHON_ROOTFS)/.keep
+	. $(PYTHON_ROOTFS)/bin/activate && cd $(LIBPYTHON_SHAPELY_SRC) && pip install . --prefix=$(PYTHON_ROOTFS) --no-compile
+	_dir=`find "$(PYTHON_ROOTFS)" -maxdepth 4 -type d -name shapely`; \
+	find "$$_dir" -type f -name '*.so' -delete; \
+	find "$$_dir" -type d -name '__pycache__' | xargs rm -rf; \
+	find "$$_dir" -type f | grep -v '\.py$$' | tr "\n" "\0" | xargs -0 rm; \
+	find "$(LIBPYTHON_SHAPELY_BASE)/importfix/shapely" -mindepth 1 -maxdepth 1 | xargs $(CP) -rp -t "$$_dir"; \
+	test `basename $$(dirname $$_dir) | cut -d. -f1,2` != $(LIBPYTHON3_VERSION) && \
+		mv "$$_dir" "$(PYTHON_ROOTFS)/lib/python$(LIBPYTHON3_VERSION)/shapely"
+	touch $@
+
+# Add shapely rootfs to main python
+python-rootfs: $(PYTHON_ROOTFS)/.shapely_done
+
+endif

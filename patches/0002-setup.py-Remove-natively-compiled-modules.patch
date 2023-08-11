@@ -1,0 +1,28 @@
+From d977931bcff5ccbcd208835937830170c8d58870 Mon Sep 17 00:00:00 2001
+From: Andrei Tatar <andrei@unikraft.io>
+Date: Fri, 11 Aug 2023 21:39:26 +0200
+Subject: [PATCH 2/2] setup.py: Remove natively-compiled modules
+
+This change removes any reference to C/C++ modules as well as any
+cythonized sources from setup.py, since Unikraft handles building these
+modules. Thus, only python files will be installed by pip.
+
+Signed-off-by: Andrei Tatar <andrei@unikraft.io>
+---
+ setup.py | 1 -
+ 1 file changed, 1 deletion(-)
+
+diff --git a/setup.py b/setup.py
+index 8253ff6..42b3aa9 100644
+--- a/setup.py
++++ b/setup.py
+@@ -211,6 +211,5 @@ cmdclass["build_ext"] = build_ext
+ # see pyproject.toml for static project metadata
+ setup(
+     version=versioneer.get_version(),
+-    ext_modules=ext_modules,
+     cmdclass=cmdclass,
+ )
+-- 
+2.41.0
+
